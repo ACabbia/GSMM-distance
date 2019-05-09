@@ -103,6 +103,7 @@ NCBI_tree.write(format=1, outfile="/home/acabbia/Documents/Muscle_Model/GSMM-dis
 NCBI_tree = Tree("/home/acabbia/Documents/Muscle_Model/GSMM-distance/NCBI_tree.nw", format = 1)
 
 #%%
+
 ##### 
 # MAKE GK TREE
 ####
@@ -142,8 +143,8 @@ ts.arc_start = -180
 ts.arc_span = 360
 
 #plot tree
-#GK_tree.render(file_name='/home/acabbia/Documents/Muscle_Model/GSMM-distance/figures/GK_tree_AGORA.png', tree_style=ts)
-#GK_tree.show(tree_style=ts)
+GK_tree.render(file_name='/home/acabbia/Documents/Muscle_Model/GSMM-distance/figures/GK_tree_AGORA.png', tree_style=ts)
+GK_tree.show(tree_style=ts)
 
 #%%
 ####
