@@ -19,14 +19,11 @@ from itertools import permutations
 
 from sklearn.cluster import AgglomerativeClustering, SpectralClustering
 from sklearn.metrics import accuracy_score, confusion_matrix
-from sklearn.cluster import AgglomerativeClustering , SpectralClustering
-from sklearn.metrics import accuracy_score
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics.pairwise import cosine_similarity
 
-from skbio import DistanceMatrix
 from skbio.tree import nj
 from ete3 import Tree , TreeStyle
 from ete3 import NCBITaxa
@@ -240,7 +237,7 @@ def CalculateAccuracy(y, y_hat):
 def HCClust(DM, trueLabel):
 
     HC = AgglomerativeClustering(n_clusters=len(
-        trueLabel.unique()), affinity='precomputed', linkage='average').fit(DM)
+        pd.Series(trueLabel).unique()), affinity='precomputed', linkage='average').fit(DM)
     y_pred = HC.labels_
 
     accHC, bestLabHC, cmHC = CalculateAccuracy(trueLabel, y_pred)
@@ -251,7 +248,7 @@ def HCClust(DM, trueLabel):
 def SCClust(DM, trueLabel):
 
     SC = SpectralClustering(n_clusters=len(
-        trueLabel.unique()), affinity='precomputed').fit(1-DM)
+        pd.Series(trueLabel).unique()), affinity='precomputed').fit(1-DM)
     y_pred = SC.labels_
 
     accSC, bestLabSC, cmSC = CalculateAccuracy(trueLabel, y_pred)
@@ -303,7 +300,10 @@ def plot_tree(tree,  save = False , path = ''):
     
     tree.show(tree_style=ts)
 
+
+#%%
 #####################################################################################################
+#PATHS
 
 path_PDGSMM = '/home/acabbia/Documents/Muscle_Model/models/merged_100/'
 path_AGORA = '/home/acabbia/Documents/Muscle_Model/models/AGORA_1.03/'
@@ -312,27 +312,26 @@ path_ref_PDGSMM = '/home/acabbia/Documents/Muscle_Model/models/HMR2.xml'
 path_ref_AGORA = '/home/acabbia/Documents/Muscle_Model/models/AGORA_universe.xml'
 
 
-# create labels
+# Labels
 label_PDGSM = [s.split('_')[0] for s in sorted(os.listdir(path_PDGSMM))]
-
 
 AGORA_taxonomy = pd.read_csv('/home/acabbia/Documents/Muscle_Model/GSMM-distance/agora_taxonomy.tsv',
                              sep='\t').sort_values(by='organism')
 
 AGORA_taxonomy.fillna(method='bfill', axis=0, inplace=True)
 
-### Replaces and aggregates classes with less than 10 samples into a new "Other" class
+# Replaces and aggregates classes with less than 10 samples into a new "Other" class 
+# to reduce the number of classes and computational time of the clustering
+
 for c in ['phylum', 'oxygenstat', 'gram', 'mtype', 'metabolism']:
     for s in list(AGORA_taxonomy[c].value_counts()[AGORA_taxonomy[c].value_counts() < 10].index):
         AGORA_taxonomy[c].replace(s, 'Other', inplace=True)
-
 
 label_AGORA_phylum = list(AGORA_taxonomy['phylum'].values)
 label_AGORA_oxy = list(AGORA_taxonomy['oxygenstat'].values)
 label_AGORA_gram = list(AGORA_taxonomy['gram'].values)
 label_AGORA_type = list(AGORA_taxonomy['mtype'].values)
 label_AGORA_nrg = list(AGORA_taxonomy['metabolism'].values)
-
 
 #%%
 rxns_PDGSM, met_PDGSM, gene_PDGSM, graphlist_PDGSM, flux_PDGSM = load_library(
@@ -342,13 +341,28 @@ rxns_AGORA, met_AGORA, gene_AGORA, graphlist_AGORA, flux_AGORA = load_library(
 
 #%%
 # Explorative Data Analysis (boxplots)
-# Reactions/metabolites/genes content of the models, grouped by label
+# Reactions/metabolites/(genes) content of the models, grouped by label
 
 boxplots(rxns_AGORA, label_AGORA_gram)
 boxplots(rxns_AGORA, label_AGORA_oxy)
 boxplots(rxns_AGORA, label_AGORA_phylum)
 boxplots(rxns_AGORA, label_AGORA_type)
+boxplots(rxns_AGORA, label_AGORA_nrg)
 boxplots(rxns_PDGSM, label_PDGSM)
+
+boxplots(met_AGORA, label_AGORA_gram)
+boxplots(met_AGORA, label_AGORA_oxy)
+boxplots(met_AGORA, label_AGORA_phylum)
+boxplots(met_AGORA, label_AGORA_type)
+boxplots(met_AGORA, label_AGORA_nrg)
+boxplots(met_PDGSM, label_PDGSM)
+
+boxplots(gene_AGORA, label_AGORA_gram)
+boxplots(gene_AGORA, label_AGORA_oxy)
+boxplots(gene_AGORA, label_AGORA_phylum)
+boxplots(gene_AGORA, label_AGORA_type)
+boxplots(gene_AGORA, label_AGORA_nrg)
+boxplots(gene_PDGSM, label_PDGSM)
 
 #%%
 
@@ -368,6 +382,7 @@ COS_AGORA = FBA_cosine_DM(flux_AGORA)
 ##### Clustering
 ### HC
 # JD
+print('Starting HC clustering...')
 JD_HC_PDGSM_acc, JD_HC_PDGSM_pred_label, JD_HC_PDGSM_cm = HCClust(
     JD_PDGSM, label_PDGSM)
 
@@ -412,6 +427,8 @@ COS_HC_AGORA_acc_phylum, COS_HC_AGORA_pred_label_phylum, COS_HC_AGORA_cm_phylum 
 COS_HC_AGORA_acc_type, COS_HC_AGORA_pred_label_type, COS_HC_AGORA_cm_type = HCClust(
     COS_AGORA, label_AGORA_type)
 
+
+print('Starting SC clustering...')
 ### SC
 # JD
 JD_SC_PDGSM_acc, JD_SC_PDGSM_pred_label, JD_SC_PDGSM_cm = SCClust(
@@ -458,6 +475,7 @@ COS_SC_AGORA_acc_phylum, COS_SC_AGORA_pred_label_phylum, COS_SC_AGORA_cm_phylum 
 COS_SC_AGORA_acc_type, COS_SC_AGORA_pred_label_type, COS_SC_AGORA_cm_type = SCClust(
     COS_AGORA, label_AGORA_type)
 
+
 #%%
 #### classification
 
@@ -483,8 +501,8 @@ COS_AGORA_knn_phylum, COS_AGORA_svm_phylum = classify(COS_AGORA, label_AGORA_phy
 COS_AGORA_knn_type, COS_AGORA_svm_type = classify(COS_AGORA, label_AGORA_type)
 
 #%%
-##### Trees comparison
 
+##### Trees comparison
 # make ref tree (NCBI) 
 
 ncbi = NCBITaxa()
@@ -494,8 +512,8 @@ NCBI_ID = list(AGORA_taxonomy['ncbiid'].dropna().values)
 NCBI_tree = ncbi.get_topology(NCBI_ID)
 
 # Ugly way to convert "phyloTree" obj into "Tree" obj for comparison with other trees
-NCBI_tree.write(format=1, outfile="/home/acabbia/Documents/Muscle_Model/GSMM-distance/NCBI_tree.nw")
-NCBI_tree = Tree("/home/acabbia/Documents/Muscle_Model/GSMM-distance/NCBI_tree.nw", format = 1)
+NCBI_tree.write(format=1, outfile="/home/acabbia/Documents/Muscle_Model/GSMM-distance/trees/NCBI_tree.nw")
+NCBI_tree = Tree("/home/acabbia/Documents/Muscle_Model/GSMM-distance/trees/NCBI_tree.nw", format = 1)
 
 ## make trees
 TREE_JD_AGORA  = make_tree(JD_AGORA)
