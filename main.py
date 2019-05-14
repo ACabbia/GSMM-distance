@@ -370,12 +370,15 @@ boxplots(met_AGORA, label_AGORA_phylum)
 boxplots(met_AGORA, label_AGORA_type)
 boxplots(met_PDGSM, label_PDGSM)
 
+'''
+### Gene annotation inexistent(PDGSM) or problematic (AGORA) 
+
 boxplots(gene_AGORA, label_AGORA_gram)
 boxplots(gene_AGORA, label_AGORA_oxy)
 boxplots(gene_AGORA, label_AGORA_phylum)
 boxplots(gene_AGORA, label_AGORA_type)
 boxplots(gene_PDGSM, label_PDGSM)
-
+'''
 #%%
 
 # make jaccard distance matrices
@@ -617,9 +620,21 @@ for tree in [TREE_JD_AGORA, TREE_GK_AGORA, TREE_COS_AGORA]:
 ##### comparisons with ref
 REF_JD_AGORA = TREE_JD_AGORA.compare(NCBI_tree, unrooted=True)
 REF_GK_AGORA = TREE_GK_AGORA.compare(NCBI_tree, unrooted=True)
-RES_COS_AGORA = TREE_COS_AGORA.compare(NCBI_tree, unrooted=True)
+REF_COS_AGORA = TREE_COS_AGORA.compare(NCBI_tree, unrooted=True)
 
 ### comparisons between metrics
 JD_GK_AGORA = TREE_JD_AGORA.compare(TREE_GK_AGORA, unrooted=True)
 JD_COS_AGORA = TREE_JD_AGORA.compare(TREE_COS_AGORA, unrooted=True)
 GK_COS_AGORA = TREE_GK_AGORA.compare(TREE_COS_AGORA, unrooted=True)
+
+COMPARISON_REF_DF = pd.DataFrame(index= ['Normalized RF distance'])
+COMPARISON_REF_DF['Reaction Similarity (Jaccard)'] = REF_JD_AGORA['norm_rf']
+COMPARISON_REF_DF['Network Similarity (Graph Kernel)'] = REF_GK_AGORA['norm_rf']
+COMPARISON_REF_DF['Flux vector similarity (Cosine)'] = REF_COS_AGORA['norm_rf']
+COMPARISON_REF_DF.plot.bar(title='Normalized Robinson-Fould distance from reference taxonomy (NCBI)')
+
+COMPARISON_DF = pd.DataFrame(index= ['Normalized RF distance'])
+COMPARISON_DF['Jaccard-GraphKernel'] = JD_GK_AGORA['norm_rf']
+COMPARISON_DF['Jaccard-Cosine'] = JD_COS_AGORA['norm_rf']
+COMPARISON_DF['GraphKernel-Cosine'] = GK_COS_AGORA['norm_rf']
+COMPARISON_DF.plot.bar(title='Normalized Robinson-Fould distance between metrics-based trees')
