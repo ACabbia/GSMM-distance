@@ -534,6 +534,30 @@ COS_AGORA_knn_phylum, COS_AGORA_svm_phylum = classify(
     COS_AGORA, label_AGORA_phylum)
 COS_AGORA_knn_type, COS_AGORA_svm_type = classify(COS_AGORA, label_AGORA_type)
 
+
+# plot KNN results
+JD_KNN_ACC_list = [JD_PDGSM_knn.mean(), JD_AGORA_knn_gram.mean(),JD_AGORA_knn_oxy.mean(),JD_AGORA_knn_phylum.mean(),JD_AGORA_knn_type.mean()]
+GK_KNN_ACC_list = [GK_PDGSM_knn.mean(), GK_AGORA_knn_gram.mean(),GK_AGORA_knn_oxy.mean(),GK_AGORA_knn_phylum.mean(),GK_AGORA_knn_type.mean()]
+COS_KNN_ACC_list = [COS_PDGSM_knn.mean(), COS_AGORA_knn_gram.mean(),COS_AGORA_knn_oxy.mean(),COS_AGORA_knn_phylum.mean(),COS_AGORA_knn_type.mean()]
+
+KNN_results_df = pd.DataFrame(index = ['PDGSM', 'AGORA-Gram', 'AGORA-Oxygen', 'AGORA-Phylum', 'AGORA-Type']) 
+KNN_results_df['Reaction Similarity (Jaccard)'] = JD_KNN_ACC_list
+KNN_results_df['Network Similarity (Graph Kernel)'] = GK_KNN_ACC_list
+KNN_results_df['Flux vector similarity (Cosine)'] = COS_KNN_ACC_list
+KNN_results_df.plot.bar(title='KNN Classification: accuracy')
+
+# plot SVM results
+JD_SVM_ACC_list = [JD_PDGSM_svm.mean(), JD_AGORA_svm_gram.mean(),JD_AGORA_svm_oxy.mean(),JD_AGORA_svm_phylum.mean(),JD_AGORA_svm_type.mean()]
+GK_SVM_ACC_list = [GK_PDGSM_svm.mean(), GK_AGORA_svm_gram.mean(),GK_AGORA_svm_oxy.mean(),GK_AGORA_svm_phylum.mean(),GK_AGORA_svm_type.mean()]
+COS_SVM_ACC_list = [COS_PDGSM_svm.mean(), COS_AGORA_svm_gram.mean(),COS_AGORA_svm_oxy.mean(),COS_AGORA_svm_phylum.mean(),COS_AGORA_svm_type.mean()]
+
+SVM_results_df = pd.DataFrame(index = ['PDGSM', 'AGORA-Gram', 'AGORA-Oxygen', 'AGORA-Phylum', 'AGORA-Type']) 
+SVM_results_df['Reaction Similarity (Jaccard)'] = JD_SVM_ACC_list
+SVM_results_df['Network Similarity (Graph Kernel)'] = GK_SVM_ACC_list
+SVM_results_df['Flux vector similarity (Cosine)'] = COS_SVM_ACC_list
+SVM_results_df.plot.bar(title='SVM Classification: accuracy')
+
+
 #%%
 
 ##### Trees comparison
