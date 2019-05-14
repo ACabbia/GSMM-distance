@@ -6,6 +6,7 @@ Created on Tue May  7 14:55:17 2019
 
 @author: acabbia
 """
+from datetime import datetime
 import os
 import cobra
 import pandas as pd
@@ -24,8 +25,9 @@ from sklearn.svm import SVC
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics.pairwise import cosine_similarity
 
+from skbio import DistanceMatrix
 from skbio.tree import nj
-from ete3 import Tree , TreeStyle
+from ete3 import Tree, TreeStyle
 from ete3 import NCBITaxa
 
 #%%
@@ -195,13 +197,11 @@ def FBA_cosine_DM(df):
 
     #Remove Nan's
     sol_df = df.replace(np.nan, 0)
-    # Fluxes < 10^-9 are set to zero
-    sol_df[sol_df < 1e-9] = 0
     processed = sol_df.T
 
     DM = pd.DataFrame(cosine_similarity(processed),
                       index=processed.index, columns=processed.index)
-    return DM
+    return 1 - DM
 
 # Clustering functions
 
@@ -257,27 +257,33 @@ def SCClust(DM, trueLabel):
 
 # classification functions
 
-def classify(DM,truelabel):
+
+def classify(DM, truelabel):
     # performs (10-fold CV) classification (with SVM and KNN), prints accuracy of retrieval of original labels
-    
+
     # arguments:
     # DM = Distance matrix
     # label = (list) class label for each model
-    
+
     # K_NN 10-Fold CV
-    neigh = KNeighborsClassifier(n_neighbors=3, metric = 'precomputed')
-    scores_K_NN = cross_val_score(neigh, DM.values, truelabel, cv = 10, scoring = 'accuracy')
-    print("Accuracy K-NN:", str(scores_K_NN.mean().round(2)), 'CV error:', scores_K_NN.std().round(2)) 
-    
+    neigh = KNeighborsClassifier(n_neighbors=3, metric='precomputed')
+    scores_K_NN = cross_val_score(
+        neigh, DM.values, truelabel, cv=10, scoring='accuracy')
+    print("Accuracy K-NN:", str(scores_K_NN.mean().round(2)),
+          'CV error:', scores_K_NN.std().round(2))
+
     # Kernel SVM 10-fold CV
     K = 1-DM
     clf = SVC(kernel='precomputed', C=1)
-    scores_K_SVM = cross_val_score(clf, K.values,truelabel, cv = 10, scoring = 'accuracy')
-    print("Accuracy SVM:", str(scores_K_SVM.mean().round(2)),'CV error:', scores_K_NN.std().round(2))
+    scores_K_SVM = cross_val_score(
+        clf, K.values, truelabel, cv=10, scoring='accuracy')
+    print("Accuracy SVM:", str(scores_K_SVM.mean().round(2)),
+          'CV error:', scores_K_NN.std().round(2))
 
-    return scores_K_NN , scores_K_SVM
+    return scores_K_NN, scores_K_SVM
 
 # PhyloTree functions
+
 
 def make_tree(DM):
 
@@ -285,25 +291,26 @@ def make_tree(DM):
     tree = Tree(njtree)
     return tree
 
-def plot_tree(tree,  save = False , path = ''):
-    
+
+def plot_tree(tree,  save=False, path=''):
+
     # style
     ts = TreeStyle()
     ts.show_leaf_name = True
     ts.mode = "c"
-    ts.arc_start = -180 
+    ts.arc_start = -180
     ts.arc_span = 360
 
     #plot tree
     if save:
-        tree.render(file_name= path , tree_style=ts)
-    
+        tree.render(file_name=path, tree_style=ts)
+
     tree.show(tree_style=ts)
 
 
 #%%
 #####################################################################################################
-#PATHS
+###PATHS
 
 path_PDGSMM = '/home/acabbia/Documents/Muscle_Model/models/merged_100/'
 path_AGORA = '/home/acabbia/Documents/Muscle_Model/models/AGORA_1.03/'
@@ -312,28 +319,36 @@ path_ref_PDGSMM = '/home/acabbia/Documents/Muscle_Model/models/HMR2.xml'
 path_ref_AGORA = '/home/acabbia/Documents/Muscle_Model/models/AGORA_universe.xml'
 
 
-# Labels
+### Labels
 label_PDGSM = [s.split('_')[0] for s in sorted(os.listdir(path_PDGSMM))]
 
 AGORA_taxonomy = pd.read_csv('/home/acabbia/Documents/Muscle_Model/GSMM-distance/agora_taxonomy.tsv',
                              sep='\t').sort_values(by='organism')
 
-AGORA_taxonomy.fillna(method='bfill', axis=0, inplace=True)
+# Replace Nan's with 'Other'
+AGORA_taxonomy.replace(np.nan, 'Other', inplace=True)
 
-# Replaces and aggregates classes with less than 10 samples into a new "Other" class 
+# Replaces and aggregates classes with less than 10 samples into a new "Other" class
 # to reduce the number of classes and computational time of the clustering
 
 for c in ['phylum', 'oxygenstat', 'gram', 'mtype', 'metabolism']:
     for s in list(AGORA_taxonomy[c].value_counts()[AGORA_taxonomy[c].value_counts() < 10].index):
         AGORA_taxonomy[c].replace(s, 'Other', inplace=True)
 
+# Merge 'Nanaerobe' with "Microaerophile" in oxygenstat variable
+AGORA_taxonomy['oxygenstat'].replace(
+    'Nanaerobe', 'Microaerophile', inplace=True)
+
+
+# Make labels
 label_AGORA_phylum = list(AGORA_taxonomy['phylum'].values)
 label_AGORA_oxy = list(AGORA_taxonomy['oxygenstat'].values)
 label_AGORA_gram = list(AGORA_taxonomy['gram'].values)
 label_AGORA_type = list(AGORA_taxonomy['mtype'].values)
-label_AGORA_nrg = list(AGORA_taxonomy['metabolism'].values)
 
 #%%
+### Load GSMMs Libraries
+
 rxns_PDGSM, met_PDGSM, gene_PDGSM, graphlist_PDGSM, flux_PDGSM = load_library(
     path_PDGSMM, path_ref_PDGSMM)
 rxns_AGORA, met_AGORA, gene_AGORA, graphlist_AGORA, flux_AGORA = load_library(
@@ -347,21 +362,18 @@ boxplots(rxns_AGORA, label_AGORA_gram)
 boxplots(rxns_AGORA, label_AGORA_oxy)
 boxplots(rxns_AGORA, label_AGORA_phylum)
 boxplots(rxns_AGORA, label_AGORA_type)
-boxplots(rxns_AGORA, label_AGORA_nrg)
 boxplots(rxns_PDGSM, label_PDGSM)
 
 boxplots(met_AGORA, label_AGORA_gram)
 boxplots(met_AGORA, label_AGORA_oxy)
 boxplots(met_AGORA, label_AGORA_phylum)
 boxplots(met_AGORA, label_AGORA_type)
-boxplots(met_AGORA, label_AGORA_nrg)
 boxplots(met_PDGSM, label_PDGSM)
 
 boxplots(gene_AGORA, label_AGORA_gram)
 boxplots(gene_AGORA, label_AGORA_oxy)
 boxplots(gene_AGORA, label_AGORA_phylum)
 boxplots(gene_AGORA, label_AGORA_type)
-boxplots(gene_AGORA, label_AGORA_nrg)
 boxplots(gene_PDGSM, label_PDGSM)
 
 #%%
@@ -382,14 +394,16 @@ COS_AGORA = FBA_cosine_DM(flux_AGORA)
 ##### Clustering
 ### HC
 # JD
-print('Starting HC clustering...')
+
+
+start = datetime.now()
+
+print('Starting HC clustering at:', start)
 JD_HC_PDGSM_acc, JD_HC_PDGSM_pred_label, JD_HC_PDGSM_cm = HCClust(
     JD_PDGSM, label_PDGSM)
 
 JD_HC_AGORA_acc_gram, JD_HC_AGORA_pred_label_gram, JD_HC_AGORA_cm_gram = HCClust(
     JD_AGORA, label_AGORA_gram)
-JD_HC_AGORA_acc_nrg, JD_HC_AGORA_pred_label_nrg, JD_HC_AGORA_cm_nrg = HCClust(
-    JD_AGORA, label_AGORA_nrg)
 JD_HC_AGORA_acc_oxy, JD_HC_AGORA_pred_label_oxy, JD_HC_AGORA_cm_oxy = HCClust(
     JD_AGORA, label_AGORA_oxy)
 JD_HC_AGORA_acc_phylum, JD_HC_AGORA_pred_label_phylum, JD_HC_AGORA_cm_phylum = HCClust(
@@ -403,8 +417,6 @@ GK_HC_PDGSM_acc, GK_HC_PDGSM_pred_label, GK_HC_PDGSM_cm = HCClust(
 
 GK_HC_AGORA_acc_gram, GK_HC_AGORA_pred_label_gram, GK_HC_AGORA_cm_gram = HCClust(
     GK_AGORA, label_AGORA_gram)
-GK_HC_AGORA_acc_nrg, GK_HC_AGORA_pred_label_nrg, GK_HC_AGORA_cm_nrg = HCClust(
-    GK_AGORA, label_AGORA_nrg)
 GK_HC_AGORA_acc_oxy, GK_HC_AGORA_pred_label_oxy, GK_HC_AGORA_cm_oxy = HCClust(
     GK_AGORA, label_AGORA_oxy)
 GK_HC_AGORA_acc_phylum, GK_HC_AGORA_pred_label_phylum, GK_HC_AGORA_cm_phylum = HCClust(
@@ -418,8 +430,6 @@ COS_HC_PDGSM_acc, COS_HC_PDGSM_pred_label, COS_HC_PDGSM_cm = HCClust(
 
 COS_HC_AGORA_acc_gram, COS_HC_AGORA_pred_label_gram, COS_HC_AGORA_cm_gram = HCClust(
     COS_AGORA, label_AGORA_gram)
-COS_HC_AGORA_acc_nrg, COS_HC_AGORA_pred_label_nrg, COS_HC_AGORA_cm_nrg = HCClust(
-    COS_AGORA, label_AGORA_nrg)
 COS_HC_AGORA_acc_oxy, COS_HC_AGORA_pred_label_oxy, COS_HC_AGORA_cm_oxy = HCClust(
     COS_AGORA, label_AGORA_oxy)
 COS_HC_AGORA_acc_phylum, COS_HC_AGORA_pred_label_phylum, COS_HC_AGORA_cm_phylum = HCClust(
@@ -428,7 +438,11 @@ COS_HC_AGORA_acc_type, COS_HC_AGORA_pred_label_type, COS_HC_AGORA_cm_type = HCCl
     COS_AGORA, label_AGORA_type)
 
 
-print('Starting SC clustering...')
+sc = datetime.now()
+mid = sc-start
+print('HC clustering took:', mid.total_seconds(), 'seconds')
+
+print('Starting SC clustering at:', sc)
 ### SC
 # JD
 JD_SC_PDGSM_acc, JD_SC_PDGSM_pred_label, JD_SC_PDGSM_cm = SCClust(
@@ -436,8 +450,6 @@ JD_SC_PDGSM_acc, JD_SC_PDGSM_pred_label, JD_SC_PDGSM_cm = SCClust(
 
 JD_SC_AGORA_acc_gram, JD_SC_AGORA_pred_label_gram, JD_SC_AGORA_cm_gram = SCClust(
     JD_AGORA, label_AGORA_gram)
-JD_SC_AGORA_acc_nrg, JD_SC_AGORA_pred_label_nrg, JD_SC_AGORA_cm_nrg = SCClust(
-    JD_AGORA, label_AGORA_nrg)
 JD_SC_AGORA_acc_oxy, JD_SC_AGORA_pred_label_oxy, JD_SC_AGORA_cm_oxy = SCClust(
     JD_AGORA, label_AGORA_oxy)
 JD_SC_AGORA_acc_phylum, JD_SC_AGORA_pred_label_phylum, JD_SC_AGORA_cm_phylum = SCClust(
@@ -451,8 +463,6 @@ GK_SC_PDGSM_acc, GK_SC_PDGSM_pred_label, GK_SC_PDGSM_cm = SCClust(
 
 GK_SC_AGORA_acc_gram, GK_SC_AGORA_pred_label_gram, GK_SC_AGORA_cm_gram = SCClust(
     GK_AGORA, label_AGORA_gram)
-GK_SC_AGORA_acc_nrg, GK_SC_AGORA_pred_label_nrg, GK_SC_AGORA_cm_nrg = SCClust(
-    GK_AGORA, label_AGORA_nrg)
 GK_SC_AGORA_acc_oxy, GK_SC_AGORA_pred_label_oxy, GK_SC_AGORA_cm_oxy = SCClust(
     GK_AGORA, label_AGORA_oxy)
 GK_SC_AGORA_acc_phylum, GK_SC_AGORA_pred_label_phylum, GK_SC_AGORA_cm_phylum = SCClust(
@@ -466,8 +476,6 @@ COS_SC_PDGSM_acc, COS_SC_PDGSM_pred_label, COS_SC_PDGSM_cm = SCClust(
 
 COS_SC_AGORA_acc_gram, COS_SC_AGORA_pred_label_gram, COS_SC_AGORA_cm_gram = SCClust(
     COS_AGORA, label_AGORA_gram)
-COS_SC_AGORA_acc_nrg, COS_SC_AGORA_pred_label_nrg, COS_SC_AGORA_cm_nrg = SCClust(
-    COS_AGORA, label_AGORA_nrg)
 COS_SC_AGORA_acc_oxy, COS_SC_AGORA_pred_label_oxy, COS_SC_AGORA_cm_oxy = SCClust(
     COS_AGORA, label_AGORA_oxy)
 COS_SC_AGORA_acc_phylum, COS_SC_AGORA_pred_label_phylum, COS_SC_AGORA_cm_phylum = SCClust(
@@ -475,35 +483,41 @@ COS_SC_AGORA_acc_phylum, COS_SC_AGORA_pred_label_phylum, COS_SC_AGORA_cm_phylum 
 COS_SC_AGORA_acc_type, COS_SC_AGORA_pred_label_type, COS_SC_AGORA_cm_type = SCClust(
     COS_AGORA, label_AGORA_type)
 
+end = datetime.now()
+scriptTime = end - start
+
+print('Clustering finished at:', end)
+print('Total clustering  time:', scriptTime.total_seconds(), 'seconds')
+
 
 #%%
 #### classification
 
 JD_PDGSM_knn, JD_PDGSM_svm = classify(JD_PDGSM, label_PDGSM)
 JD_AGORA_knn_gram, JD_AGORA_svm_gram = classify(JD_AGORA, label_AGORA_gram)
-JD_AGORA_knn_nrg, JD_AGORA_svm_nrg = classify(JD_AGORA, label_AGORA_nrg)
 JD_AGORA_knn_oxy, JD_AGORA_svm_oxy = classify(JD_AGORA, label_AGORA_oxy)
-JD_AGORA_knn_phylum, JD_AGORA_svm_phylum = classify(JD_AGORA, label_AGORA_phylum)
+JD_AGORA_knn_phylum, JD_AGORA_svm_phylum = classify(
+    JD_AGORA, label_AGORA_phylum)
 JD_AGORA_knn_type, JD_AGORA_svm_type = classify(JD_AGORA, label_AGORA_type)
 
 GK_PDGSM_knn, GK_PDGSM_svm = classify(GK_PDGSM, label_PDGSM)
 GK_AGORA_knn_gram, GK_AGORA_svm_gram = classify(GK_AGORA, label_AGORA_gram)
-GK_AGORA_knn_nrg, GK_AGORA_svm_nrg = classify(GK_AGORA, label_AGORA_nrg)
 GK_AGORA_knn_oxy, GK_AGORA_svm_oxy = classify(GK_AGORA, label_AGORA_oxy)
-GK_AGORA_knn_phylum, GK_AGORA_svm_phylum = classify(GK_AGORA, label_AGORA_phylum)
+GK_AGORA_knn_phylum, GK_AGORA_svm_phylum = classify(
+    GK_AGORA, label_AGORA_phylum)
 GK_AGORA_knn_type, GK_AGORA_svm_type = classify(GK_AGORA, label_AGORA_type)
 
 COS_PDGSM_knn, COS_PDGSM_svm = classify(COS_PDGSM, label_PDGSM)
 COS_AGORA_knn_gram, COS_AGORA_svm_gram = classify(COS_AGORA, label_AGORA_gram)
-COS_AGORA_knn_nrg, COS_AGORA_svm_nrg = classify(COS_AGORA, label_AGORA_nrg)
 COS_AGORA_knn_oxy, COS_AGORA_svm_oxy = classify(COS_AGORA, label_AGORA_oxy)
-COS_AGORA_knn_phylum, COS_AGORA_svm_phylum = classify(COS_AGORA, label_AGORA_phylum)
+COS_AGORA_knn_phylum, COS_AGORA_svm_phylum = classify(
+    COS_AGORA, label_AGORA_phylum)
 COS_AGORA_knn_type, COS_AGORA_svm_type = classify(COS_AGORA, label_AGORA_type)
 
 #%%
 
 ##### Trees comparison
-# make ref tree (NCBI) 
+# make ref tree (NCBI)
 
 ncbi = NCBITaxa()
 ncbi.update_taxonomy_database()
@@ -512,34 +526,56 @@ NCBI_ID = list(AGORA_taxonomy['ncbiid'].dropna().values)
 NCBI_tree = ncbi.get_topology(NCBI_ID)
 
 # Ugly way to convert "phyloTree" obj into "Tree" obj for comparison with other trees
-NCBI_tree.write(format=1, outfile="/home/acabbia/Documents/Muscle_Model/GSMM-distance/trees/NCBI_tree.nw")
-NCBI_tree = Tree("/home/acabbia/Documents/Muscle_Model/GSMM-distance/trees/NCBI_tree.nw", format = 1)
+NCBI_tree.write(
+    format=1, outfile="/home/acabbia/Documents/Muscle_Model/GSMM-distance/trees/NCBI_tree.nw")
+NCBI_tree = Tree(
+    "/home/acabbia/Documents/Muscle_Model/GSMM-distance/trees/NCBI_tree.nw", format=1)
+
+# fix non zero diagonal values in FBA DM
+COS_AGORA[COS_AGORA < 10e-10] = 0
+COS_PDGSM[COS_PDGSM < 10e-10] = 0
+
+# Convert Distance matrices into skbio.Distance_matrix objects
+
+JD_AGORA_DM = DistanceMatrix(JD_AGORA)
+GK_AGORA_DM = DistanceMatrix(GK_AGORA)
+COS_AGORA_DM = DistanceMatrix(COS_AGORA)
+
+JD_PDGSM_DM = DistanceMatrix(JD_PDGSM)
+GK_PDGSM_DM = DistanceMatrix(GK_PDGSM)
+COS_PDGSM_DM = DistanceMatrix(COS_PDGSM)
 
 ## make trees
-TREE_JD_AGORA  = make_tree(JD_AGORA)
-TREE_GK_AGORA  = make_tree(GK_AGORA)
-TREE_COS_AGORA = make_tree(COS_AGORA) 
+TREE_JD_AGORA = make_tree(JD_AGORA_DM)
+TREE_GK_AGORA = make_tree(GK_AGORA_DM)
+TREE_COS_AGORA = make_tree(COS_AGORA_DM)
 
-TREE_JD_PDGSM  = make_tree(JD_PDGSM)
-TREE_GK_PDGSM  = make_tree(GK_PDGSM)
-TREE_COS_PDGSM = make_tree(COS_PDGSM) 
+TREE_JD_PDGSM = make_tree(JD_PDGSM_DM)
+TREE_GK_PDGSM = make_tree(GK_PDGSM_DM)
+TREE_COS_PDGSM = make_tree(COS_PDGSM_DM)
+
+#### What to do with PDGSM Tree?
+
 
 #%%
+# dictionary to translate between model_taxonomy.index (GK and JD trees) and NCBI_id (NCBI tree)
+
+idx_str = [str(i) for i in list(AGORA_taxonomy.index)]
+NCBI_str = [str(i) for i in NCBI_ID]
+
+translator = dict(zip(idx_str, NCBI_str))
+
+#Annotate GK and JD trees with NCBI id's
+for tree in [TREE_JD_AGORA, TREE_GK_AGORA, TREE_COS_AGORA]:
+    for leaf in tree:
+        leaf.name = translator[leaf.name]
+
 ##### comparisons with ref
-
-REF_JD_AGORA  = TREE_JD_AGORA.compare(NCBI_tree)
-REF_GK_AGORA  = TREE_GK_AGORA.compare(NCBI_tree)
-RES_COS_AGORA = TREE_COS_AGORA.compare(NCBI_tree)
-
-REF_JD_PDGSM  = TREE_JD_PDGSM.compare(NCBI_tree)
-REF_GK_PDGSM  = TREE_GK_PDGSM.compare(NCBI_tree)
-REF_COS_PDGSM = TREE_COS_PDGSM.compare(NCBI_tree)
+REF_JD_AGORA = TREE_JD_AGORA.compare(NCBI_tree, unrooted=True)
+REF_GK_AGORA = TREE_GK_AGORA.compare(NCBI_tree, unrooted=True)
+RES_COS_AGORA = TREE_COS_AGORA.compare(NCBI_tree, unrooted=True)
 
 ### comparisons between metrics
-JD_GK_AGORA = TREE_JD_AGORA.compare(TREE_GK_AGORA)
-JD_COS_AGORA = TREE_JD_AGORA.compare(TREE_COS_AGORA)
-GK_COS_AGORA = TREE_GK_AGORA.compare(TREE_COS_AGORA)
-
-JD_GK_PDGSM = TREE_JD_PDGSM.compare(TREE_GK_PDGSM)
-JD_COS_PDGSM = TREE_JD_PDGSM.compare(TREE_COS_PDGSM)
-GK_COS_PDGSM = TREE_GK_PDGSM.compare(TREE_COS_PDGSM)
+JD_GK_AGORA = TREE_JD_AGORA.compare(TREE_GK_AGORA, unrooted=True)
+JD_COS_AGORA = TREE_JD_AGORA.compare(TREE_COS_AGORA, unrooted=True)
+GK_COS_AGORA = TREE_GK_AGORA.compare(TREE_COS_AGORA, unrooted=True)
