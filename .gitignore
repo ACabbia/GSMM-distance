@@ -16,6 +16,7 @@ trees/
 
 # Packages #
 ############
+*.tab
 *.7z
 *.dmg
 *.gz
