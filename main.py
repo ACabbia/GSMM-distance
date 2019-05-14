@@ -395,10 +395,6 @@ COS_AGORA = FBA_cosine_DM(flux_AGORA)
 ### HC
 # JD
 
-
-start = datetime.now()
-
-print('Starting HC clustering at:', start)
 JD_HC_PDGSM_acc, JD_HC_PDGSM_pred_label, JD_HC_PDGSM_cm = HCClust(
     JD_PDGSM, label_PDGSM)
 
@@ -437,12 +433,18 @@ COS_HC_AGORA_acc_phylum, COS_HC_AGORA_pred_label_phylum, COS_HC_AGORA_cm_phylum 
 COS_HC_AGORA_acc_type, COS_HC_AGORA_pred_label_type, COS_HC_AGORA_cm_type = HCClust(
     COS_AGORA, label_AGORA_type)
 
+# Collect results
 
-sc = datetime.now()
-mid = sc-start
-print('HC clustering took:', mid.total_seconds(), 'seconds')
+JD_HC_ACC_list = [JD_HC_PDGSM_acc, JD_HC_AGORA_acc_gram, JD_HC_AGORA_acc_oxy,
+                     JD_HC_AGORA_acc_phylum, JD_HC_AGORA_acc_type]
 
-print('Starting SC clustering at:', sc)
+GK_HC_ACC_list = [GK_HC_PDGSM_acc, GK_HC_AGORA_acc_gram, GK_HC_AGORA_acc_oxy,
+                     GK_HC_AGORA_acc_phylum, GK_HC_AGORA_acc_type]
+
+COS_HC_ACC_list = [COS_HC_PDGSM_acc, COS_HC_AGORA_acc_gram, COS_HC_AGORA_acc_oxy,
+                     COS_HC_AGORA_acc_phylum, COS_HC_AGORA_acc_type]
+
+
 ### SC
 # JD
 JD_SC_PDGSM_acc, JD_SC_PDGSM_pred_label, JD_SC_PDGSM_cm = SCClust(
@@ -483,11 +485,31 @@ COS_SC_AGORA_acc_phylum, COS_SC_AGORA_pred_label_phylum, COS_SC_AGORA_cm_phylum 
 COS_SC_AGORA_acc_type, COS_SC_AGORA_pred_label_type, COS_SC_AGORA_cm_type = SCClust(
     COS_AGORA, label_AGORA_type)
 
-end = datetime.now()
-scriptTime = end - start
+# Collect results
 
-print('Clustering finished at:', end)
-print('Total clustering  time:', scriptTime.total_seconds(), 'seconds')
+JD_SC_ACC_list = [JD_SC_PDGSM_acc, JD_SC_AGORA_acc_gram, JD_SC_AGORA_acc_oxy,
+                     JD_SC_AGORA_acc_phylum, JD_SC_AGORA_acc_type]
+
+GK_SC_ACC_list = [GK_SC_PDGSM_acc, GK_SC_AGORA_acc_gram, GK_SC_AGORA_acc_oxy,
+                     GK_SC_AGORA_acc_phylum, GK_SC_AGORA_acc_type]
+
+COS_SC_ACC_list = [COS_SC_PDGSM_acc, COS_SC_AGORA_acc_gram, COS_SC_AGORA_acc_oxy,
+                     COS_SC_AGORA_acc_phylum, COS_SC_AGORA_acc_type]
+
+#### PLOT CLUSTERING RESULTS
+HC_Clust_results_df = pd.DataFrame(index = ['PDGSM, AGORA-Gram, AGORA-Oxygen, AGORA-Phylum, AGORA-Type'])
+HC_Clust_results_df['Reaction Similarity (Jaccard)'] = JD_HC_ACC_list
+HC_Clust_results_df['Network Similarity (Graph Kernel)'] = GK_HC_ACC_list
+HC_Clust_results_df['Flux vector similarity (Cosine)'] = COS_HC_ACC_list
+HC_Clust_results_df.plot.bar(title= 'Hierarchical clustering: accuracy')
+
+
+SC_Clust_results_df = pd.DataFrame(index = ['PDGSM, AGORA-Gram, AGORA-Oxygen, AGORA-Phylum, AGORA-Type'])
+SC_Clust_results_df['Reaction Similarity (Jaccard)'] = JD_SC_ACC_list
+SC_Clust_results_df['Network Similarity (Graph Kernel)'] = GK_SC_ACC_list
+SC_Clust_results_df['Flux vector similarity (Cosine)'] = COS_SC_ACC_list
+SC_Clust_results_df.plot.bar(title= 'Spectral clustering: accuracy')
+
 
 
 #%%
